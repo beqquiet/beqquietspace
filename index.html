@@ -24,6 +24,8 @@
             width: 100%;
             height: 100%;
             display: flex;
+            /* ZMIANA: Zmieniono układ na kolumnowy */
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 20px;
@@ -68,7 +70,6 @@
             overflow: hidden;
         }
         
-        /* ZMIANA: Automatyczny glitch po rozpoczęciu gry */
         .auto-glitch::before {
              animation: glitch-anim-1 0.8s infinite linear alternate-reverse;
         }
@@ -485,7 +486,7 @@
         const mainContent = document.getElementById('main-content');
         const mazeCanvas = document.getElementById('mazeCanvas');
         const mazeCtx = mazeCanvas.getContext('2d');
-        const glitchTitle = document.querySelector('#maze-container .glitch'); // ZMIANA
+        const glitchTitle = document.querySelector('#maze-container .glitch'); 
         
         const soundtrack = document.getElementById('soundtrack');
         const winSfx = document.getElementById('win-sfx');
@@ -577,7 +578,7 @@
             if (!musicStarted) {
                 soundtrack.play().catch(e => console.error("Autoplay muzyki zablokowany:", e));
                 musicStarted = true;
-                glitchTitle.classList.add('auto-glitch'); // ZMIANA: Uruchom glitch
+                glitchTitle.classList.add('auto-glitch');
             }
         }
 
