@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>beqquiet</title>
+    <style>
+        /* --- Import czcionek --- */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Press+Start+2P&display=swap');
+
+        /* --- Globalne style dla całości --- */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Roboto Mono', monospace;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        /* --- Kontener na labirynt (Etap 1) --- */
+        #maze-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            transition: opacity 0.7s ease-out;
+            background-color: #000;
+        }
+
+        #maze-container {
+            background-color: #000000;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* --- Style dla efektu GLITCH --- */
+        .glitch {
+            position: relative;
+            font-weight: 400;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            font-size: 2em;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+        
+        /* ZMIANA: Automatyczny glitch po rozpoczęciu gry */
+        .auto-glitch::before {
+             animation: glitch-anim-1 0.8s infinite linear alternate-reverse;
+        }
+        
+        .auto-glitch::after {
+            animation: glitch-anim-2 0.9s infinite linear alternate-reverse;
+        }
+
+        .glitch:hover::before {
+            left: 4px;
+            text-shadow: -3px 0 #ff00ff, 2px 2px #00ffff;
+        }
+
+        .glitch:hover::after {
+            left: -4px;
+            text-shadow: -3px 0 #00ffff, 2px -2px #ff00ff;
+        }
+        
+        @keyframes glitch-anim-1 {
+            0% { clip-path: inset(15% 0 86% 0); } 10% { clip-path: inset(55% 0 1% 0); }
+            20% { clip-path: inset(92% 0 2% 0); } 30% { clip-path: inset(33% 0 40% 0); }
+            40% { clip-path: inset(5% 0 55% 0); } 50% { clip-path: inset(62% 0 4% 0); }
+            60% { clip-path: inset(80% 0 15% 0); } 70% { clip-path: inset(30% 0 62% 0); }
+            80% { clip-path: inset(95% 0 2% 0); } 90% { clip-path: inset(18% 0 78% 0); }
+            100% { clip-path: inset(40% 0 45% 0); }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% { clip-path: inset(83% 0 10% 0); } 10% { clip-path: inset(45% 0 50% 0); }
+            20% { clip-path: inset(10% 0 88% 0); } 30% { clip-path: inset(63% 0 10% 0); }
+            40% { clip-path: inset(25% 0 70% 0); } 50% { clip-path: inset(98% 0 1% 0); }
+            60% { clip-path: inset(33% 0 55% 0); } 70% { clip-path: inset(75% 0 5% 0); }
+            80% { clip-path: inset(12% 0 85% 0); } 90% { clip-path: inset(68% 0 5% 0); }
+            100% { clip-path: inset(35% 0 60% 0); }
+        }
+        
+        #mazeCanvas {
+            background-color: #000000;
+            border: 2px solid #ffffff;
+        }
+
+        /* --- Style dla przycisków sterujących --- */
+        #controls-container {
+            display: grid;
+            grid-template-columns: 50px 50px 50px;
+            grid-template-rows: 50px 50px 50px;
+            gap: 5px;
+        }
+
+        .control-btn {
+            background-color: #222;
+            border: 2px solid #fff;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Press Start 2P', cursive;
+            color: #fff;
+            font-size: 24px;
+        }
+        
+        .control-btn:active {
+            background-color: #444;
+        }
+
+        #btn-up { grid-column: 2 / 3; grid-row: 1 / 2; }
+        #btn-left { grid-column: 1 / 2; grid-row: 2 / 3; }
+        #btn-right { grid-column: 3 / 4; grid-row: 2 / 3; }
+        #btn-down { grid-column: 2 / 3; grid-row: 3 / 4; }
+
+
+        /* --- Kontener na główną treść (Etap 2, początkowo ukryty) --- */
+        #main-content {
+            display: none; /* Ukryty na starcie */
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            animation: fadeInContent 1s forwards;
+            animation-delay: 0.5s;
+            background-color: #008080; /* Kolor tła Win98 */
+            font-family: 'Tahoma', sans-serif; /* Klasyczna czcionka */
+            position: relative;
+        }
+
+        @keyframes fadeInContent { to { opacity: 1; } }
+        
+        /* --- Style dla pulpitu Win98 --- */
+        .desktop-icon {
+            position: absolute;
+            width: 80px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .desktop-icon img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+        .desktop-icon p {
+            color: white;
+            text-shadow: 1px 1px 1px black;
+            font-size: 14px;
+            margin-top: 5px;
+            word-wrap: break-word;
+        }
+        
+        #notepad-icon { top: 30px; left: 30px; }
+        #terminal-icon { top: 120px; left: 30px; }
+
+        /* --- Okno (wspólne style) --- */
+        .window {
+            position: absolute;
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            display: none; /* Ukryte na starcie */
+            flex-direction: column;
+            z-index: 200;
+        }
+        
+        .title-bar {
+            background: linear-gradient(to right, #000080, #1084d0);
+            color: white;
+            padding: 3px 5px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+        
+        .title-bar-controls button {
+            background: #c0c0c0;
+            border: 1px solid;
+            border-color: #fff #808080 #808080 #fff;
+            font-family: 'Marlett', 'Arial', sans-serif;
+            font-size: 12px;
+            width: 16px;
+            height: 14px;
+            line-height: 10px;
+            padding: 0;
+            margin-left: 2px;
+        }
+        
+        /* --- Okno Notatnika --- */
+        #notepad-window {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px; height: 200px;
+        }
+        .window-body {
+            flex-grow: 1; margin: 2px; background: white;
+            border: 1px solid #808080; padding: 10px;
+            font-family: 'Courier New', monospace; font-size: 16px;
+            color: black; overflow: auto;
+        }
+
+        /* --- Okno Terminala --- */
+        #terminal-window {
+            top: 40%; left: 60%;
+            transform: translate(-50%, -50%);
+            width: 450px; height: 300px;
+        }
+        .terminal-body {
+            flex-grow: 1;
+            margin: 2px;
+            background: #000;
+            border: 1px solid #808080;
+            padding: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #c0c0c0;
+            overflow-y: auto;
+        }
+        .terminal-body .terminal-line {
+            white-space: pre-wrap;
+        }
+        .terminal-input-line {
+            display: flex;
+        }
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: #c0c0c0;
+            font-family: inherit;
+            font-size: inherit;
+            flex-grow: 1;
+        }
+        .terminal-input:focus {
+            outline: none;
+        }
+
+        /* --- Pasek zadań --- */
+        .taskbar {
+            position: absolute; bottom: 0; left: 0;
+            width: 100%; height: 30px; background: #c0c0c0;
+            border-top: 2px solid #fff; display: flex;
+            align-items: center; padding: 0 4px; z-index: 300;
+        }
+        .start-button {
+            background: #c0c0c0; border: 2px solid;
+            border-color: #fff #808080 #808080 #fff; padding: 2px 8px;
+            font-weight: bold; display: flex; align-items: center;
+            cursor: pointer;
+        }
+        .start-button img { width: 20px; height: 20px; margin-right: 5px; }
+        
+        .tray {
+            margin-left: auto;
+            border: 1px inset #fff;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+        }
+        .network-icon img {
+            width: 20px;
+            height: 20px;
+        }
+        .taskbar-clock {
+            padding: 0 5px;
+            font-size: 12px;
+        }
+
+        /* --- Menu Start --- */
+        #start-menu {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 180px;
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #fff #808080 #808080 #fff;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 400;
+            padding: 2px;
+        }
+        .start-menu-side-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 25px;
+            height: 100%;
+            background: #808080;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .start-menu-side-bar span {
+            writing-mode: vertical-lr;
+            transform: rotate(180deg);
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        #start-menu ul {
+            list-style: none;
+            margin: 0 0 0 27px;
+            padding: 2px 0;
+        }
+        #start-menu li a {
+            display: flex;
+            align-items: center;
+            padding: 5px 10px;
+            text-decoration: none;
+            color: #000;
+            font-size: 14px;
+        }
+        #start-menu li a:hover {
+            background: #000080;
+            color: #fff;
+        }
+        #start-menu li img {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .start-menu-separator {
+            height: 1px;
+            background: #808080;
+            border-bottom: 1px solid #fff;
+            margin: 4px 0;
+        }
+        
+        /* --- Ekran Blue Screen --- */
+        #bsod {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0000a8;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            display: none;
+            z-index: 9999;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #bsod p {
+            margin: 0 0 1em 0;
+        }
+        
+        /* Media Queries */
+        @media (min-width: 768px) { #controls-container { display: none; } }
+        @media (max-width: 767px) { .glitch { font-size: 1.5em; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- ETAP 1: LABIRYNT -->
+    <div id="maze-wrapper">
+        <div id="maze-container">
+            <h1 class="glitch" data-text="TU NIE MA WYJŚCIA.">Znajdź drogę do wyjścia.</h1>
+            <canvas id="mazeCanvas"></canvas>
+        </div>
+        <div id="controls-container">
+            <div id="btn-up" class="control-btn">▲</div>
+            <div id="btn-left" class="control-btn">◄</div>
+            <div id="btn-right" class="control-btn">►</div>
+            <div id="btn-down" class="control-btn">▼</div>
+        </div>
+    </div>
+
+    <!-- ETAP 2: FAKE OS (UKRYTY) -->
+    <div id="main-content">
+        <div class="desktop-icon" id="notepad-icon">
+            <img src="https://win98icons.alexmeub.com/icons/png/notepad-0.png" alt="Notatnik">
+            <p>Przeczytaj.txt</p>
+        </div>
+        <div class="desktop-icon" id="terminal-icon">
+            <img src="https://win98icons.alexmeub.com/icons/png/console_prompt-0.png" alt="beTerminal">
+            <p>beTerminal</p>
+        </div>
+
+        <div class="window" id="notepad-window">
+            <div class="title-bar">
+                <span>Przeczytaj.txt - Notatnik</span>
+                <div class="title-bar-controls">
+                    <button class="close-btn">r</button>
+                </div>
+            </div>
+            <div class="window-body">
+                SOON
+            </div>
+        </div>
+        
+        <div class="window" id="terminal-window">
+            <div class="title-bar">
+                <span>beTerminal</span>
+                <div class="title-bar-controls">
+                    <button class="close-btn">r</button>
+                </div>
+            </div>
+            <div class="terminal-body" id="terminal-body">
+                <div class="terminal-line">beqquiet OS [Version 1.0.0]</div>
+                <div class="terminal-line">(c) 2025 beqquiet Corporation. All rights reserved.</div>
+                <div class="terminal-line"></div>
+                <div class="terminal-input-line">
+                    <span>C:\></span>
+                    <input type="text" class="terminal-input" autofocus>
+                </div>
+            </div>
+        </div>
+        
+        <div id="start-menu">
+            <div class="start-menu-side-bar">
+                <span>BEQQUIET<strong>07</strong></span>
+            </div>
+            <ul>
+                <li><a href="#"><img src="https://win98icons.alexmeub.com/icons/png/shell_window3.png">Programy</a></li>
+                <li><a href="#"><img src="https://win98icons.alexmeub.com/icons/png/directory_closed-4.png">Dokumenty</a></li>
+                <li><a href="#"><img src="https://win98icons.alexmeub.com/icons/png/settings_gear-0.png">Ustawienia</a></li>
+                <li><a href="#"><img src="https://win98icons.alexmeub.com/icons/png/search_directory-0.png">Znajdź</a></li>
+                <li class="start-menu-separator"></li>
+                <li><a href="#" id="help-btn"><img src="https://win98icons.alexmeub.com/icons/png/card_reader_empty-0.png">Pomoc</a></li>
+                <li><a href="#" id="run-btn"><img src="https://win98icons.alexmeub.com/icons/png/display_properties-5.png">Uruchom...</a></li>
+                <li class="start-menu-separator"></li>
+                <li><a href="#" id="shutdown-btn"><img src="https://win98icons.alexmeub.com/icons/png/shut_down_cool-0.png">Zamknij...</a></li>
+            </ul>
+        </div>
+
+        <div class="taskbar">
+            <div class="start-button">
+                <img src="https://win98icons.alexmeub.com/icons/png/windows-0.png" alt="Start">
+                <span>Start</span>
+            </div>
+            <div class="tray">
+                <div class="network-icon">
+                    <img src="https://win98icons.alexmeub.com/icons/png/telephony-4.png" alt="Połączenie sieciowe">
+                </div>
+                <div class="taskbar-clock" id="taskbar-clock"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="bsod">
+        <p>*** STOP: 0x0000001E (0xC0000005, 0xFDE38AF9, 0x00000001, 0x00000000)</p>
+        <p>KMODE_EXCEPTION_NOT_HANDLED</p>
+        <p><br>Wystąpił błąd krytyczny. System zostanie zrestartowany.</p>
+        <p>Naciśnij dowolny klawisz, aby kontynuować _</p>
+    </div>
+    
+    <audio id="soundtrack" src="sound1.mp3" loop></audio>
+    <audio id="win-sfx" src="sfx.mp3"></audio>
+    <audio id="bsod-sfx" src="bsod.mp3"></audio>
+
+    <script>
+        // --- Skrypt dla labiryntu ---
+        const mazeWrapper = document.getElementById('maze-wrapper');
+        const mainContent = document.getElementById('main-content');
+        const mazeCanvas = document.getElementById('mazeCanvas');
+        const mazeCtx = mazeCanvas.getContext('2d');
+        const glitchTitle = document.querySelector('#maze-container .glitch'); // ZMIANA
+        
+        const soundtrack = document.getElementById('soundtrack');
+        const winSfx = document.getElementById('win-sfx');
+        const bsodSfx = document.getElementById('bsod-sfx');
+
+        const mazeSize = 10;
+        const cellSize = 25;
+        mazeCanvas.width = mazeSize * cellSize;
+        mazeCanvas.height = mazeSize * cellSize;
+
+        let grid = [];
+        let stack = [];
+        let gameActive = true;
+        let musicStarted = false;
+
+        const player = {
+            x: 0, y: 0,
+            animX: 0, animY: 0,
+            size: cellSize / 1.5,
+            color: '#ffffff'
+        };
+        player.animX = player.x * cellSize + (cellSize - player.size) / 2;
+        player.animY = player.y * cellSize + (cellSize - player.size) / 2;
+
+        const goal = {
+            x: mazeSize - 1, y: mazeSize - 1,
+            size: cellSize / 1.5, color: '#ffffff'
+        };
+
+        class Cell {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.walls = { top: true, right: true, bottom: true, left: true };
+                this.visited = false;
+            }
+            draw() {
+                const xPos = this.x * cellSize, yPos = this.y * cellSize;
+                mazeCtx.strokeStyle = '#ffffff'; mazeCtx.lineWidth = 2;
+                if (this.walls.top) { mazeCtx.beginPath(); mazeCtx.moveTo(xPos, yPos); mazeCtx.lineTo(xPos + cellSize, yPos); mazeCtx.stroke(); }
+                if (this.walls.right) { mazeCtx.beginPath(); mazeCtx.moveTo(xPos + cellSize, yPos); mazeCtx.lineTo(xPos + cellSize, yPos + cellSize); mazeCtx.stroke(); }
+                if (this.walls.bottom) { mazeCtx.beginPath(); mazeCtx.moveTo(xPos + cellSize, yPos + cellSize); mazeCtx.lineTo(xPos, yPos + cellSize); mazeCtx.stroke(); }
+                if (this.walls.left) { mazeCtx.beginPath(); mazeCtx.moveTo(xPos, yPos + cellSize); mazeCtx.lineTo(xPos, yPos); mazeCtx.stroke(); }
+            }
+            getNeighbors() {
+                const neighbors = [];
+                const top = grid[this.x]?.[this.y - 1], right = grid[this.x + 1]?.[this.y],
+                      bottom = grid[this.x]?.[this.y + 1], left = grid[this.x - 1]?.[this.y];
+                if (top && !top.visited) neighbors.push(top);
+                if (right && !right.visited) neighbors.push(right);
+                if (bottom && !bottom.visited) neighbors.push(bottom);
+                if (left && !left.visited) neighbors.push(left);
+                return neighbors.length > 0 ? neighbors[Math.floor(Math.random() * neighbors.length)] : undefined;
+            }
+        }
+
+        function removeWalls(a, b) {
+            const dx = a.x - b.x;
+            if (dx === 1) { a.walls.left = false; b.walls.right = false; }
+            else if (dx === -1) { a.walls.right = false; b.walls.left = false; }
+            const dy = a.y - b.y;
+            if (dy === 1) { a.walls.top = false; b.walls.bottom = false; }
+            else if (dy === -1) { a.walls.bottom = false; b.walls.top = false; }
+        }
+
+        function generateMaze() {
+            for (let x = 0; x < mazeSize; x++) {
+                grid[x] = [];
+                for (let y = 0; y < mazeSize; y++) grid[x][y] = new Cell(x, y);
+            }
+            let current = grid[0][0];
+            current.visited = true; stack.push(current);
+            while (stack.length > 0) {
+                current = stack.pop();
+                const next = current.getNeighbors();
+                if (next) { stack.push(current); removeWalls(current, next); next.visited = true; stack.push(next); }
+            }
+        }
+
+        function drawMaze() {
+            mazeCtx.clearRect(0, 0, mazeCanvas.width, mazeCanvas.height);
+            grid.forEach(row => row.forEach(cell => cell.draw()));
+            mazeCtx.fillStyle = goal.color;
+            mazeCtx.fillRect(goal.x * cellSize + (cellSize - goal.size) / 2, goal.y * cellSize + (cellSize - goal.size) / 2, goal.size, goal.size);
+            mazeCtx.fillStyle = player.color;
+            mazeCtx.fillRect(player.animX, player.animY, player.size, player.size);
+        }
+        
+        function startMusic() {
+            if (!musicStarted) {
+                soundtrack.play().catch(e => console.error("Autoplay muzyki zablokowany:", e));
+                musicStarted = true;
+                glitchTitle.classList.add('auto-glitch'); // ZMIANA: Uruchom glitch
+            }
+        }
+
+        function handleMove(direction) {
+            startMusic();
+            if (!gameActive) return;
+            const currentCell = grid[player.x][player.y];
+            switch (direction) {
+                case 'up': if (!currentCell.walls.top) player.y--; break;
+                case 'down': if (!currentCell.walls.bottom) player.y++; break;
+                case 'left': if (!currentCell.walls.left) player.x--; break;
+                case 'right': if (!currentCell.walls.right) player.x++; break;
+            }
+            checkWinCondition();
+        }
+
+        function checkWinCondition() {
+            if (player.x === goal.x && player.y === goal.y) {
+                gameActive = false;
+                soundtrack.pause();
+                soundtrack.currentTime = 0;
+                winSfx.play();
+                document.removeEventListener('keydown', keydownHandler);
+                mazeWrapper.style.opacity = '0';
+                setTimeout(() => {
+                    mazeWrapper.style.display = 'none';
+                    mainContent.style.display = 'block';
+                    initFakeOS();
+                }, 700);
+            }
+        }
+        
+        function keydownHandler(e) {
+            switch (e.key) {
+                case 'ArrowUp': case 'w': handleMove('up'); break;
+                case 'ArrowDown': case 's': handleMove('down'); break;
+                case 'ArrowLeft': case 'a': handleMove('left'); break;
+                case 'ArrowRight': case 'd': handleMove('right'); break;
+            }
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            const targetX = player.x * cellSize + (cellSize - player.size) / 2;
+            const targetY = player.y * cellSize + (cellSize - player.size) / 2;
+            player.animX += (targetX - player.animX) * 0.15;
+            player.animY += (targetY - player.animY) * 0.15;
+            drawMaze();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initMaze() {
+            generateMaze();
+            document.addEventListener('keydown', keydownHandler);
+            document.getElementById('btn-up').addEventListener('click', () => handleMove('up'));
+            document.getElementById('btn-down').addEventListener('click', () => handleMove('down'));
+            document.getElementById('btn-left').addEventListener('click', () => handleMove('left'));
+            document.getElementById('btn-right').addEventListener('click', () => handleMove('right'));
+            gameLoop();
+        }
+
+        // --- Skrypt dla Fake OS ---
+        function initFakeOS() {
+            const clockElement = document.getElementById('taskbar-clock');
+            const startButton = document.querySelector('.start-button');
+            const startMenu = document.getElementById('start-menu');
+            const bsodScreen = document.getElementById('bsod');
+            
+            function updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                clockElement.textContent = `${hours}:${minutes}`;
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            startButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                startMenu.style.display = startMenu.style.display === 'block' ? 'none' : 'block';
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!startMenu.contains(e.target) && !startButton.contains(e.target)) {
+                    startMenu.style.display = 'none';
+                }
+            });
+
+            const desktopIcons = document.querySelectorAll('.desktop-icon');
+            desktopIcons.forEach(icon => {
+                icon.addEventListener('dblclick', () => {
+                    const windowId = icon.id.replace('-icon', '-window');
+                    const windowEl = document.getElementById(windowId);
+                    if (windowEl) {
+                        windowEl.style.display = 'flex';
+                        if (windowId === 'terminal-window') {
+                            const termInput = windowEl.querySelector('.terminal-input');
+                            if(termInput) termInput.focus();
+                        }
+                    }
+                });
+            });
+
+            const closeButtons = document.querySelectorAll('.close-btn');
+            closeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const windowEl = btn.closest('.window');
+                    if (windowEl) {
+                        windowEl.style.display = 'none';
+                    }
+                });
+            });
+
+            document.querySelectorAll('.title-bar').forEach(titleBar => {
+                let isDragging = false;
+                let offset = { x: 0, y: 0 };
+                const windowEl = titleBar.closest('.window');
+
+                titleBar.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    offset.x = e.clientX - windowEl.offsetLeft;
+                    offset.y = e.clientY - windowEl.offsetTop;
+                    titleBar.style.cursor = 'grabbing';
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) {
+                        windowEl.style.left = `${e.clientX - offset.x}px`;
+                        windowEl.style.top = `${e.clientY - offset.y}px`;
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        titleBar.style.cursor = 'move';
+                    }
+                });
+            });
+            
+            function triggerBSOD(e) {
+                e.preventDefault();
+                bsodSfx.play();
+                bsodScreen.style.display = 'block';
+                setTimeout(() => {
+                    location.reload();
+                }, 4000);
+            }
+
+            document.getElementById('shutdown-btn').addEventListener('click', triggerBSOD);
+            document.getElementById('help-btn').addEventListener('click', triggerBSOD);
+            document.getElementById('run-btn').addEventListener('click', triggerBSOD);
+            
+            // --- Logika Terminala ---
+            const terminalBody = document.getElementById('terminal-body');
+
+            terminalBody.addEventListener('click', () => {
+                const currentInput = terminalBody.querySelector('.terminal-input');
+                if (currentInput) {
+                    currentInput.focus();
+                }
+            });
+
+            terminalBody.addEventListener('keydown', (e) => {
+                if (e.target.classList.contains('terminal-input') && e.key === 'Enter') {
+                    const inputEl = e.target;
+                    const command = inputEl.value.trim();
+                    
+                    const commandLine = document.createElement('div');
+                    commandLine.className = 'terminal-line';
+                    commandLine.textContent = `C:\\>${command}`;
+                    inputEl.parentElement.replaceWith(commandLine);
+                    
+                    handleTerminalCommand(command);
+                }
+            });
+
+            function handleTerminalCommand(command) {
+                if (command.toLowerCase() === 'soon') {
+                    const outputLine = document.createElement('div');
+                    outputLine.className = 'terminal-line';
+                    terminalBody.appendChild(outputLine);
+                    
+                    const textToType = '08.2025';
+                    let i = 0;
+                    
+                    const typingInterval = setInterval(() => {
+                        if (i < textToType.length) {
+                            outputLine.textContent += textToType.charAt(i);
+                            i++;
+                        } else {
+                            clearInterval(typingInterval);
+                            addNewInputLine();
+                        }
+                    }, 200);
+                } else if (command !== '') {
+                    const errorLine = document.createElement('div');
+                    errorLine.className = 'terminal-line';
+                    errorLine.textContent = `'${command}' is not recognized as an internal or external command.`;
+                    terminalBody.appendChild(errorLine);
+                    addNewInputLine();
+                } else {
+                    addNewInputLine();
+                }
+            }
+
+            function addNewInputLine() {
+                const newLine = document.createElement('div');
+                newLine.className = 'terminal-input-line';
+                newLine.innerHTML = `<span>C:\\></span><input type="text" class="terminal-input" autofocus>`;
+                
+                terminalBody.appendChild(newLine);
+                const newInput = newLine.querySelector('.terminal-input');
+                newInput.focus();
+                
+                terminalBody.scrollTop = terminalBody.scrollHeight;
+            }
+        }
+
+        // --- Inicjalizacja ---
+        initMaze();
+    </script>
+</body>
+</html>
